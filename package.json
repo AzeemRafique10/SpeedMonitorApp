@@ -12,7 +12,10 @@
   "dependencies": {
     "react": "19.0.0",
     "react-native": "0.79.2",
+    "react-native-background-timer": "^2.4.1",
+    "react-native-send-direct-sms": "^0.2.0",
     "react-native-sensors": "^7.3.6",
+    "react-native-sms": "^1.12.0",
     "react-native-vision-camera": "^4.6.4"
   },
   "devDependencies": {
