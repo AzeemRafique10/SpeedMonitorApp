@@ -1,5 +1,6 @@
 import React, {useState, useEffect, useRef} from 'react';
 import {SendDirectSms} from 'react-native-send-direct-sms';
+import Geolocation from 'react-native-geolocation-service';
 import BackgroundTimer from 'react-native-background-timer';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
 import {
@@ -10,16 +11,19 @@ import {
 import {
   View,
   Text,
-  Button,
   StyleSheet,
-  TextInput,
   PermissionsAndroid,
   Alert,
+  Platform,
 } from 'react-native';
+
+import RNButton from '../components/RNButton';
+import RNTextInput from '../components/RNTextInput';
 
 const HomeScreen = () => {
   const [speedLimit, setSpeedLimit] = useState('40');
   const [zeroSpeedDuration, setZeroSpeedDuration] = useState('2');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
@@ -32,7 +36,42 @@ const HomeScreen = () => {
   let accelerometerSubscription = useRef(null);
 
   useEffect(() => {
-    requestPermissions();
+    const startLocationTracking = async () => {
+      const permission = await requestLocationPermission();
+      if (!permission) return;
+
+      Geolocation.watchPosition(
+        position => {
+          const speedInMps = position.coords.speed;
+          const speedInKmph =
+            speedInMps !== null ? (speedInMps * 3.6).toFixed(2) : '0.00';
+
+          setCurrentSpeed(speedInKmph);
+        },
+        error => {
+          console.error('Geolocation error:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          distanceFilter: 1,
+          interval: 1000,
+          fastestInterval: 1000,
+          showsBackgroundLocationIndicator: true,
+          forceRequestLocation: true,
+          showLocationDialog: true,
+        },
+      );
+    };
+
+    startLocationTracking();
+
+    return () => {
+      Geolocation.stopObserving();
+    };
+
+    return () => {
+      Geolocation.clearWatch(); // safer cleanup
+    };
   }, []);
 
   const requestPermissions = async () => {
@@ -55,8 +94,34 @@ const HomeScreen = () => {
       console.warn(err);
     }
   };
+  const requestLocationPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        ]);
+
+        return (
+          granted['android.permission.ACCESS_FINE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED &&
+          granted['android.permission.ACCESS_COARSE_LOCATION'] ===
+            PermissionsAndroid.RESULTS.GRANTED
+        );
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
 
   const sendSpeedAlertSMS = async () => {
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      Alert.alert('Error', 'Please enter a phone number first.');
+      return;
+    }
+
     try {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.SEND_SMS,
@@ -70,7 +135,6 @@ const HomeScreen = () => {
       );
 
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        const phoneNumber = '+923338737779';
         const message = 'Alert: Speed limit exceeded!';
         SendDirectSms(phoneNumber, message)
           .then(() => {
@@ -164,25 +228,29 @@ const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Speed Monitor App</Text>
-      <Text>Current Speed: {currentSpeed} km/h</Text>
+      <Text style={styles.speedText}>Current Speed: {currentSpeed} km/h</Text>
 
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        placeholder="Speed Limit (e.g. 40)"
+      <RNTextInput
         value={speedLimit}
         onChangeText={setSpeedLimit}
+        keyboardType="numeric"
+        placeholder="Speed Limit (e.g. 40)"
       />
 
-      <TextInput
-        style={styles.input}
+      <RNTextInput
         keyboardType="numeric"
         placeholder="Zero Speed Stop Time (minutes)"
         value={zeroSpeedDuration}
         onChangeText={setZeroSpeedDuration}
       />
+      <RNTextInput
+        keyboardType="phone-pad"
+        placeholder="Enter Phone Number with country code"
+        value={phoneNumber}
+        onChangeText={setPhoneNumber}
+      />
 
-      <Button
+      <RNButton
         title={monitoring ? 'Stop Monitoring' : 'Start Monitoring'}
         onPress={() => {
           if (!monitoring) {
@@ -215,8 +283,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   heading: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: 'bold',
+    color: '#1E88E5', // Blue accent
+    textAlign: 'center',
+    marginBottom: 16,
+    marginTop: 24,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+  },
+  speedText: {
+    fontSize: 20,
+    color: '#333',
+    textAlign: 'center',
     marginBottom: 20,
   },
   input: {
