@@ -41,7 +41,7 @@ const HomeScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle={'default'} />
-      <Text style={styles.heading}>Speed Monitor App</Text>
+      <Text style={styles.heading}>Speed Monitor</Text>
       <RNSpeedMeter currentSpeed={currentSpeed} />
       <RNTextInput
         value={speedLimit}
@@ -120,52 +120,6 @@ const styles = StyleSheet.create({
   camera: {
     height: 0,
     width: 0,
-  },
-  speedometer: {
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-    marginBottom: 40,
-  },
-  background: {
-    backgroundColor: '#e0e0e0',
-  },
-  arc: {
-    borderWidth: 6,
-    borderColor: '#009688',
-    backgroundColor: 'transparent',
-    borderRadius: 100,
-  },
-  needle: {
-    width: 4,
-    height: 80,
-    backgroundColor: '#ff5733',
-    borderRadius: 2,
-  },
-  progress: {
-    backgroundColor: '#4caf50',
-    height: 10,
-    borderRadius: 5,
-  },
-  marks: {
-    width: '100%',
-    position: 'absolute',
-    top: '50%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-  },
-  indicator: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: [{translateX: -10}, {translateY: -10}],
-    width: 20,
-    height: 20,
-    backgroundColor: '#ff5733',
-    borderRadius: 10,
   },
 });
 
