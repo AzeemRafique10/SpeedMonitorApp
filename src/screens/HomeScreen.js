@@ -1,240 +1,53 @@
-import React, {useState, useEffect, useRef} from 'react';
-import {SendDirectSms} from 'react-native-send-direct-sms';
-import Geolocation from 'react-native-geolocation-service';
-import BackgroundTimer from 'react-native-background-timer';
+import React, {useState, useRef} from 'react';
+import {View, Text, StyleSheet, StatusBar} from 'react-native';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
-import {
-  accelerometer,
-  setUpdateIntervalForType,
-  SensorTypes,
-} from 'react-native-sensors';
-import {
-  View,
-  Text,
-  StyleSheet,
-  PermissionsAndroid,
-  Alert,
-  Platform,
-} from 'react-native';
 
 import RNButton from '../components/RNButton';
+import {useSendSMS} from '../hooks/useSendSMS';
 import RNTextInput from '../components/RNTextInput';
+import RNSpeedMeter from '../components/RNSpeedMeter';
+import {usePermissions} from '../hooks/usePermissions';
+import {useVideoRecorder} from '../hooks/useVideoRecorder';
+import {useSpeedMonitoring} from '../hooks/useSpeedMonitoring';
+import {useLocationTracking} from '../hooks/useLocationTracking';
 
 const HomeScreen = () => {
-  const [speedLimit, setSpeedLimit] = useState('40');
-  const [zeroSpeedDuration, setZeroSpeedDuration] = useState('2');
+  const [speedLimit, setSpeedLimit] = useState('');
+  const [zeroSpeedDuration, setZeroSpeedDuration] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [currentSpeed, setCurrentSpeed] = useState(0);
-  const [isRecording, setIsRecording] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
   const cameraRef = useRef(null);
   const devices = useCameraDevices();
   const device = devices.back;
 
-  let recordingTimeout = useRef(null);
-  let zeroSpeedTimer = useRef(null);
-  let accelerometerSubscription = useRef(null);
-
-  useEffect(() => {
-    const startLocationTracking = async () => {
-      const permission = await requestLocationPermission();
-      if (!permission) return;
-
-      Geolocation.watchPosition(
-        position => {
-          const speedInMps = position.coords.speed;
-          const speedInKmph =
-            speedInMps !== null ? (speedInMps * 3.6).toFixed(2) : '0.00';
-
-          setCurrentSpeed(speedInKmph);
-        },
-        error => {
-          console.error('Geolocation error:', error);
-        },
-        {
-          enableHighAccuracy: true,
-          distanceFilter: 1,
-          interval: 1000,
-          fastestInterval: 1000,
-          showsBackgroundLocationIndicator: true,
-          forceRequestLocation: true,
-          showLocationDialog: true,
-        },
-      );
-    };
-
-    startLocationTracking();
-
-    return () => {
-      Geolocation.stopObserving();
-    };
-
-    return () => {
-      Geolocation.clearWatch(); // safer cleanup
-    };
-  }, []);
-
-  const requestPermissions = async () => {
-    const permissions = [
-      PermissionsAndroid.PERMISSIONS.CAMERA,
-      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-      PermissionsAndroid.PERMISSIONS.SEND_SMS,
-      PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-    ];
-
-    try {
-      const granted = await PermissionsAndroid.requestMultiple(permissions);
-      const allGranted = Object.values(granted).every(
-        p => p === PermissionsAndroid.RESULTS.GRANTED,
-      );
-      if (!allGranted)
-        // Alert.alert('Permissions not granted. App may not work properly.');
-        console.log('Permissions not granted. App may not work properly.');
-    } catch (err) {
-      console.warn(err);
-    }
-  };
-  const requestLocationPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        ]);
-
-        return (
-          granted['android.permission.ACCESS_FINE_LOCATION'] ===
-            PermissionsAndroid.RESULTS.GRANTED &&
-          granted['android.permission.ACCESS_COARSE_LOCATION'] ===
-            PermissionsAndroid.RESULTS.GRANTED
-        );
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const sendSpeedAlertSMS = async () => {
-    if (!phoneNumber || phoneNumber.trim() === '') {
-      Alert.alert('Error', 'Please enter a phone number first.');
-      return;
-    }
-
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.SEND_SMS,
-        {
-          title: 'SMS Permission',
-          message: 'This app needs access to send SMS messages.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        const message = 'Alert: Speed limit exceeded!';
-        SendDirectSms(phoneNumber, message)
-          .then(() => {
-            console.log('SMS sent successfully');
-            Alert.alert('Success', 'SMS sent successfully');
-          })
-          .catch(error => {
-            console.error('Failed to send SMS', error);
-            Alert.alert('Error', 'Failed to send SMS');
-          });
-      } else {
-        console.warn('SMS permission denied');
-        Alert.alert('Permission Denied', 'Cannot send SMS without permission');
-      }
-    } catch (err) {
-      console.warn('SMS permission request error', err);
-    }
-  };
-
-  const startMonitoring = () => {
-    setUpdateIntervalForType(SensorTypes.accelerometer, 1000);
-
-    accelerometerSubscription.current = accelerometer.subscribe(({x, y, z}) => {
-      const acceleration = Math.sqrt(x * x + y * y + z * z) - 9.8;
-      const speed = Math.abs(acceleration * 3.6);
-      setCurrentSpeed(speed.toFixed(2));
-
-      const limit = parseFloat(speedLimit);
-      const zeroLimit = parseFloat(zeroSpeedDuration) * 60 * 1000;
-
-      if (speed > limit && !isRecording) {
-        sendSpeedAlertSMS();
-        startRecording();
-      }
-
-      if (speed <= 1 && isRecording && !zeroSpeedTimer.current) {
-        zeroSpeedTimer.current = BackgroundTimer.setTimeout(() => {
-          stopRecording();
-        }, zeroLimit);
-      }
-
-      if (speed > 1 && zeroSpeedTimer.current) {
-        BackgroundTimer.clearTimeout(zeroSpeedTimer.current);
-        zeroSpeedTimer.current = null;
-      }
-    });
-  };
-
-  const stopMonitoring = () => {
-    if (accelerometerSubscription.current)
-      accelerometerSubscription.current.unsubscribe();
-    if (zeroSpeedTimer.current)
-      BackgroundTimer.clearTimeout(zeroSpeedTimer.current);
-    zeroSpeedTimer.current = null;
-    setMonitoring(false);
-  };
-
-  const startRecording = async () => {
-    if (cameraRef.current) {
-      try {
-        const video = await cameraRef.current.startRecording({
-          flash: 'off',
-          onRecordingFinished: video => console.log(video.path),
-          onRecordingError: error => console.error(error),
-        });
-        setIsRecording(true);
-
-        recordingTimeout.current = BackgroundTimer.setTimeout(() => {
-          stopRecording();
-        }, 10 * 60 * 1000);
-      } catch (err) {
-        console.error('Recording failed', err);
-      }
-    }
-  };
-
-  const stopRecording = async () => {
-    if (cameraRef.current) {
-      try {
-        await cameraRef.current.stopRecording();
-      } catch (err) {
-        console.warn(err);
-      }
-    }
-    if (recordingTimeout.current)
-      BackgroundTimer.clearTimeout(recordingTimeout.current);
-    recordingTimeout.current = null;
-    setIsRecording(false);
-  };
+  const {requestLocationPermission, requestAppPermissions} = usePermissions();
+  const {isRecording, startRecording, stopRecording} =
+    useVideoRecorder(cameraRef);
+  const {sendSpeedAlertSMS} = useSendSMS(phoneNumber);
+  const {startMonitoring, stopMonitoring} = useSpeedMonitoring(
+    speedLimit,
+    zeroSpeedDuration,
+    setCurrentSpeed,
+    isRecording,
+    () => {
+      sendSpeedAlertSMS();
+      startRecording();
+    },
+    stopRecording,
+  );
+  useLocationTracking(setCurrentSpeed, requestLocationPermission);
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle={'default'} />
       <Text style={styles.heading}>Speed Monitor App</Text>
-      <Text style={styles.speedText}>Current Speed: {currentSpeed} km/h</Text>
-
+      <RNSpeedMeter currentSpeed={currentSpeed} />
       <RNTextInput
         value={speedLimit}
         onChangeText={setSpeedLimit}
         keyboardType="numeric"
-        placeholder="Speed Limit (e.g. 40)"
+        placeholder="Enter Speed Limit (e.g. 40)"
       />
 
       <RNTextInput
@@ -261,7 +74,6 @@ const HomeScreen = () => {
           }
         }}
       />
-
       {device && (
         <Camera
           ref={cameraRef}
@@ -285,7 +97,7 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1E88E5', // Blue accent
+    color: '#1E88E5',
     textAlign: 'center',
     marginBottom: 16,
     marginTop: 24,
@@ -308,6 +120,52 @@ const styles = StyleSheet.create({
   camera: {
     height: 0,
     width: 0,
+  },
+  speedometer: {
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
+    marginBottom: 40,
+  },
+  background: {
+    backgroundColor: '#e0e0e0',
+  },
+  arc: {
+    borderWidth: 6,
+    borderColor: '#009688',
+    backgroundColor: 'transparent',
+    borderRadius: 100,
+  },
+  needle: {
+    width: 4,
+    height: 80,
+    backgroundColor: '#ff5733',
+    borderRadius: 2,
+  },
+  progress: {
+    backgroundColor: '#4caf50',
+    height: 10,
+    borderRadius: 5,
+  },
+  marks: {
+    width: '100%',
+    position: 'absolute',
+    top: '50%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+  },
+  indicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: [{translateX: -10}, {translateY: -10}],
+    width: 20,
+    height: 20,
+    backgroundColor: '#ff5733',
+    borderRadius: 10,
   },
 });
 
