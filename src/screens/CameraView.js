@@ -21,10 +21,9 @@ const CameraView = () => {
   const handleOpenCamera = () => {
     if (hasPermission) {
       setShowCamera(true);
-      // Delay to ensure the camera device is initialized
       setTimeout(() => {
         setIsCameraReady(true);
-      }, 1000); // Adjust the delay as needed
+      }, 1000);
     } else {
       requestPermission();
     }

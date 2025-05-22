@@ -71,6 +71,7 @@ const HomeScreen = () => {
             setMonitoring(true);
           } else {
             stopMonitoring();
+            setMonitoring(false);
           }
         }}
       />

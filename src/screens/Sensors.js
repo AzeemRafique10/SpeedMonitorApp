@@ -11,15 +11,13 @@ const Sensors = () => {
   const [orientation, setOrientation] = useState('Neutral');
 
   useEffect(() => {
-    // Set the update interval for the accelerometer
-    setUpdateIntervalForType(SensorTypes.accelerometer, 100); // 100ms
+    setUpdateIntervalForType(SensorTypes.accelerometer, 100);
 
-    // Subscribe to accelerometer data
     const subscription = accelerometer
       .pipe(map(({x, y}) => ({x, y})))
       .subscribe(
         ({x, y}) => {
-          const threshold = 1.0; // Adjust this threshold as needed
+          const threshold = 1.0;
 
           if (y < -threshold) {
             setOrientation('Up');
@@ -38,7 +36,6 @@ const Sensors = () => {
         },
       );
 
-    // Cleanup subscription on unmount
     return () => {
       subscription.unsubscribe();
     };
