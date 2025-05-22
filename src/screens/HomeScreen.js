@@ -1,11 +1,12 @@
-import React, {useState, useRef} from 'react';
+import {useNavigation} from '@react-navigation/native';
+import React, {useState, useRef, useContext} from 'react';
 import {View, Text, StyleSheet, StatusBar} from 'react-native';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
 
 import RNButton from '../components/RNButton';
 import {useSendSMS} from '../hooks/useSendSMS';
+import {SpeedContext} from '../utils/SpeedContext';
 import RNTextInput from '../components/RNTextInput';
-import RNSpeedMeter from '../components/RNSpeedMeter';
 import {usePermissions} from '../hooks/usePermissions';
 import {useVideoRecorder} from '../hooks/useVideoRecorder';
 import {useSpeedMonitoring} from '../hooks/useSpeedMonitoring';
@@ -15,11 +16,12 @@ const HomeScreen = () => {
   const [speedLimit, setSpeedLimit] = useState('');
   const [zeroSpeedDuration, setZeroSpeedDuration] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [currentSpeed, setCurrentSpeed] = useState(0);
   const [monitoring, setMonitoring] = useState(false);
   const cameraRef = useRef(null);
   const devices = useCameraDevices();
   const device = devices.back;
+  const navigation = useNavigation();
+  const {currentSpeed, setCurrentSpeed} = useContext(SpeedContext);
 
   const {requestLocationPermission, requestAppPermissions} = usePermissions();
   const {isRecording, startRecording, stopRecording} =
@@ -42,7 +44,6 @@ const HomeScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle={'default'} />
       <Text style={styles.heading}>Speed Monitor</Text>
-      <RNSpeedMeter currentSpeed={currentSpeed} />
       <RNTextInput
         value={speedLimit}
         onChangeText={setSpeedLimit}
@@ -69,6 +70,11 @@ const HomeScreen = () => {
           if (!monitoring) {
             startMonitoring();
             setMonitoring(true);
+
+            navigation.navigate('MonitorScreen', {
+              currentSpeed,
+              setCurrentSpeed,
+            });
           } else {
             stopMonitoring();
             setMonitoring(false);
