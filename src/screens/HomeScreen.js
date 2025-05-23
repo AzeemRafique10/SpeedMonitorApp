@@ -1,7 +1,7 @@
 import {useNavigation} from '@react-navigation/native';
-import React, {useState, useRef, useContext} from 'react';
 import {View, Text, StyleSheet, StatusBar} from 'react-native';
 import {Camera, useCameraDevices} from 'react-native-vision-camera';
+import React, {useState, useRef, useContext, useEffect} from 'react';
 
 import RNButton from '../components/RNButton';
 import {useSendSMS} from '../hooks/useSendSMS';
@@ -19,7 +19,9 @@ const HomeScreen = () => {
   const [monitoring, setMonitoring] = useState(false);
   const cameraRef = useRef(null);
   const devices = useCameraDevices();
-  const device = devices.back;
+  // const device = devices.back;
+  const device = devices.front;
+
   const navigation = useNavigation();
   const {currentSpeed, setCurrentSpeed} = useContext(SpeedContext);
 
@@ -32,6 +34,7 @@ const HomeScreen = () => {
     zeroSpeedDuration,
     setCurrentSpeed,
     isRecording,
+    // sendSpeedAlertSMS,
     () => {
       sendSpeedAlertSMS();
       startRecording();
@@ -40,10 +43,16 @@ const HomeScreen = () => {
   );
   useLocationTracking(setCurrentSpeed, requestLocationPermission);
 
+  // useEffect(() => {
+  //   requestLocationPermission();
+  //   requestAppPermissions();
+  // }, []);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle={'default'} />
       <Text style={styles.heading}>Speed Monitor</Text>
+
       <RNTextInput
         value={speedLimit}
         onChangeText={setSpeedLimit}
@@ -57,6 +66,7 @@ const HomeScreen = () => {
         value={zeroSpeedDuration}
         onChangeText={setZeroSpeedDuration}
       />
+
       <RNTextInput
         keyboardType="phone-pad"
         placeholder="Enter Phone Number with country code"
@@ -66,6 +76,9 @@ const HomeScreen = () => {
 
       <RNButton
         title={monitoring ? 'Stop Monitoring' : 'Start Monitoring'}
+        disabled={
+          !speedLimit.trim() || !zeroSpeedDuration.trim() || !phoneNumber.trim()
+        }
         onPress={() => {
           if (!monitoring) {
             startMonitoring();
@@ -79,6 +92,10 @@ const HomeScreen = () => {
             stopMonitoring();
             setMonitoring(false);
           }
+
+          if (currentSpeed > parseInt(speedLimit) && !isRecording) {
+            startRecording();
+          }
         }}
       />
       {device && (
@@ -89,6 +106,7 @@ const HomeScreen = () => {
           isActive={isRecording}
           video={true}
           audio={true}
+          type={Camera.Constants.Type.front}
         />
       )}
     </View>

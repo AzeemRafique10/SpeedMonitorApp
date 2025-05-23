@@ -1,16 +1,24 @@
 import React, {useContext} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 
+import RNButton from '../components/RNButton';
 import {SpeedContext} from '../utils/SpeedContext';
 import RNSpeedMeter from '../components/RNSpeedMeter';
 
 const MonitorScreen = () => {
   const {currentSpeed} = useContext(SpeedContext);
+  const navigation = useNavigation();
+
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Speed Meter</Text>
-      {/* <Text style={styles.speed}>{currentSpeed}</Text> */}
-      <RNSpeedMeter currentSpeed={currentSpeed} />
+
+      <RNSpeedMeter currentSpeed={currentSpeed} width={200} />
+      <RNButton
+        title="Finish"
+        onPress={() => navigation.navigate('HomeScreen')}
+      />
     </View>
   );
 };

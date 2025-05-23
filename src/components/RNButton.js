@@ -17,7 +17,7 @@ export default RNButton;
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#1E88E5', // Primary blue
+    backgroundColor: '#1E88E5',
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 12,
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   disabledButton: {
-    backgroundColor: '#B0BEC5', // Gray for disabled state
+    backgroundColor: '#B0BEC5',
   },
   buttonText: {
     color: '#fff',
