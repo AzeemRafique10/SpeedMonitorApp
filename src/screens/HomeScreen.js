@@ -1,12 +1,11 @@
-import {useNavigation} from '@react-navigation/native';
+import React, {useState, useRef} from 'react';
 import {View, Text, StyleSheet, StatusBar} from 'react-native';
-import {Camera, useCameraDevices} from 'react-native-vision-camera';
-import React, {useState, useRef, useContext, useEffect} from 'react';
 
 import RNButton from '../components/RNButton';
 import {useSendSMS} from '../hooks/useSendSMS';
-import {SpeedContext} from '../utils/SpeedContext';
+import {useSpyCamera} from '../hooks/useSpyCamera';
 import RNTextInput from '../components/RNTextInput';
+import RNSpeedMeter from '../components/RNSpeedMeter';
 import {usePermissions} from '../hooks/usePermissions';
 import {useVideoRecorder} from '../hooks/useVideoRecorder';
 import {useSpeedMonitoring} from '../hooks/useSpeedMonitoring';
@@ -17,24 +16,19 @@ const HomeScreen = () => {
   const [zeroSpeedDuration, setZeroSpeedDuration] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [monitoring, setMonitoring] = useState(false);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+
   const cameraRef = useRef(null);
-  const devices = useCameraDevices();
-  // const device = devices.back;
-  const device = devices.front;
 
-  const navigation = useNavigation();
-  const {currentSpeed, setCurrentSpeed} = useContext(SpeedContext);
-
+  const {startRecording, getHiddenCameraComponent} = useSpyCamera();
   const {requestLocationPermission, requestAppPermissions} = usePermissions();
-  const {isRecording, startRecording, stopRecording} =
-    useVideoRecorder(cameraRef);
+  const {isRecording, stopRecording} = useVideoRecorder(cameraRef);
   const {sendSpeedAlertSMS} = useSendSMS(phoneNumber);
   const {startMonitoring, stopMonitoring} = useSpeedMonitoring(
     speedLimit,
     zeroSpeedDuration,
     setCurrentSpeed,
     isRecording,
-    // sendSpeedAlertSMS,
     () => {
       sendSpeedAlertSMS();
       startRecording();
@@ -43,15 +37,12 @@ const HomeScreen = () => {
   );
   useLocationTracking(setCurrentSpeed, requestLocationPermission);
 
-  // useEffect(() => {
-  //   requestLocationPermission();
-  //   requestAppPermissions();
-  // }, []);
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle={'default'} />
       <Text style={styles.heading}>Speed Monitor</Text>
+
+      <RNSpeedMeter currentSpeed={currentSpeed} width={200} />
 
       <RNTextInput
         value={speedLimit}
@@ -76,18 +67,11 @@ const HomeScreen = () => {
 
       <RNButton
         title={monitoring ? 'Stop Monitoring' : 'Start Monitoring'}
-        disabled={
-          !speedLimit.trim() || !zeroSpeedDuration.trim() || !phoneNumber.trim()
-        }
+        disabled={!speedLimit.trim() || !phoneNumber.trim()}
         onPress={() => {
           if (!monitoring) {
             startMonitoring();
             setMonitoring(true);
-
-            navigation.navigate('MonitorScreen', {
-              currentSpeed,
-              setCurrentSpeed,
-            });
           } else {
             stopMonitoring();
             setMonitoring(false);
@@ -98,17 +82,8 @@ const HomeScreen = () => {
           }
         }}
       />
-      {device && (
-        <Camera
-          ref={cameraRef}
-          style={styles.camera}
-          device={device}
-          isActive={isRecording}
-          video={true}
-          audio={true}
-          type={Camera.Constants.Type.front}
-        />
-      )}
+
+      {getHiddenCameraComponent()}
     </View>
   );
 };
@@ -124,8 +99,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1E88E5',
     textAlign: 'center',
-    marginBottom: 16,
-    marginTop: 24,
+    marginBottom: 5,
+    marginTop: 10,
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
