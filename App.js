@@ -3,17 +3,12 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 
 import HomeScreen from './src/screens/HomeScreen';
-import CameraScreen from './src/screens/CameraScreen';
 import SplashScreen from './src/screens/SplashScreen';
 
 const Stack = createNativeStackNavigator();
 
 function App() {
   return (
-    // <View style={{flex: 1}}>
-    //   <CameraScreen />
-    // </View>
-
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName="SplashScreen"
